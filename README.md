@@ -1,8 +1,30 @@
+📂 project-root
+ ┣ 📄 .env.example
+ ┣ 📄 server.js
+ ┣ 📂 models
+ ┃ ┣ User.js
+ ┃ ┗ Proof.js
+ ┣ 📂 middleware
+ ┃ ┗ errorHandler.js
+ ┣ 📂 src
+ ┃ ┣ App.jsx
+ ┃ ┗ components
+ ┃   ┗ Login.jsx
+ ┣ 📂 screens
+ ┃ ┣ LoginScreen.js
+ ┃ ┗ EvidenceScreen.js
+ ┣ 📄 package.json
+ ┗ 📄 README.md
+
+
+---
+
 🔹 .env.example
 
 MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
+VITE_API_URL=http://localhost:5000
 
 
 ---
@@ -138,15 +160,6 @@ app.listen(process.env.PORT || 5000, () => console.log("🚀 Backend running"));
 
 ---
 
-📂 frontend
-
-🔹 .env.example
-
-VITE_API_URL=http://localhost:5000
-
-
----
-
 🔹 src/App.jsx
 
 import { useState } from "react";
@@ -232,9 +245,9 @@ export default function Login({ setToken }) {
 
 ---
 
-📂 mobile (React Native)
-
 🔹 screens/LoginScreen.js
+
+(React Native)
 
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet } from "react-native";
@@ -360,6 +373,3 @@ const styles = StyleSheet.create({
   message: { marginVertical: 10, fontSize: 14, color: "blue" },
   card: { padding: 10, backgroundColor: "#fff", borderRadius: 8, marginBottom: 10 },
 });
-
-
----
