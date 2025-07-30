@@ -1,35 +1,34 @@
-📂 project-root
- ┣ 📄 .env.example
- ┣ 📄 server.js
- ┣ 📂 models
- ┃ ┣ User.js
- ┃ ┗ Proof.js
- ┣ 📂 middleware
- ┃ ┗ errorHandler.js
- ┣ 📂 src
- ┃ ┣ App.jsx
- ┃ ┗ components
- ┃   ┗ Login.jsx
- ┣ 📂 screens
- ┃ ┣ LoginScreen.js
- ┃ ┗ EvidenceScreen.js
- ┣ 📄 package.json
- ┗ 📄 README.md
+loan-shield-app/
+│
+├── backend/
+│   ├── .env.example
+│   ├── server.js
+│   ├── models/
+│   │   ├── User.js
+│   │   └── Proof.js
+│   └── middleware/
+│       └── errorHandler.js
+│
+├── frontend/
+│   ├── .env.example
+│   └── src/
+│       ├── App.jsx
+│       ├── Splash.jsx   (optional, तुम add कर सकते हो)
+│       └── components/
+│           └── Login.jsx
+│
+└── mobile/
+    └── screens/
+        ├── LoginScreen.js
+        └── EvidenceScreen.js
 
-
----
-
-🔹 .env.example
+backend/.env.example
 
 MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
-VITE_API_URL=http://localhost:5000
 
-
----
-
-🔹 models/User.js
+backend/models/User.js
 
 import mongoose from "mongoose";
 
@@ -44,10 +43,7 @@ const userSchema = new mongoose.Schema({
 
 export default mongoose.model("User", userSchema);
 
-
----
-
-🔹 models/Proof.js
+backend/models/Proof.js
 
 import mongoose from "mongoose";
 
@@ -59,20 +55,14 @@ const proofSchema = new mongoose.Schema({
 
 export default mongoose.model("Proof", proofSchema);
 
-
----
-
-🔹 middleware/errorHandler.js
+backend/middleware/errorHandler.js
 
 export default function errorHandler(err, req, res, next) {
   console.error("❌ Error:", err.message);
   res.status(500).json({ message: "Server Error" });
 }
 
-
----
-
-🔹 server.js
+backend/server.js
 
 import express from "express";
 import bodyParser from "body-parser";
@@ -158,9 +148,18 @@ app.use(errorHandler);
 app.listen(process.env.PORT || 5000, () => console.log("🚀 Backend running"));
 
 
----
+cd backend
+npm install
+npm start
 
-🔹 src/App.jsx
+
+--
+frontend/.env.example
+
+VITE_API_URL=http://localhost:5000
+
+
+frontend/src/App.jsx
 
 import { useState } from "react";
 import Splash from "./Splash";
@@ -188,10 +187,7 @@ export default function App() {
   );
 }
 
-
----
-
-🔹 src/components/Login.jsx
+frontend/src/components/Login.jsx
 
 import { useState } from "react";
 
@@ -242,12 +238,11 @@ export default function Login({ setToken }) {
   );
 }
 
+cd frontend
+npm install
+npm run dev
 
----
-
-🔹 screens/LoginScreen.js
-
-(React Native)
+mobile/screens/LoginScreen.js
 
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet } from "react-native";
@@ -299,10 +294,7 @@ const styles = StyleSheet.create({
   text: { marginTop: 10, color: "blue" },
 });
 
-
----
-
-🔹 screens/EvidenceScreen.js
+mobile/screens/EvidenceScreen.js
 
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from "react-native";
@@ -373,3 +365,7 @@ const styles = StyleSheet.create({
   message: { marginVertical: 10, fontSize: 14, color: "blue" },
   card: { padding: 10, backgroundColor: "#fff", borderRadius: 8, marginBottom: 10 },
 });
+
+cd mobile
+npm install
+npm run android
