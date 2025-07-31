@@ -369,3 +369,39 @@ const styles = StyleSheet.create({
 cd mobile
 npm install
 npm run android
+
+npm install
+
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
+JWT_SECRET=supersecretjwtkey
+PORT=5000
+
+node server.js
+
+✅ MongoDB Connected
+🚀 Backend running
+
+npm install
+
+VITE_API_URL=http://localhost:5000
+
+npm run dev
+
+http://localhost:5173
+
+npm install
+
+const res = await fetch("http://10.0.2.2:5000/login", {...});
+
+npx react-native run-android
+
+npx expo start
+
+# 1. Backend run
+node server.js
+
+# 2. Frontend run
+npm run dev
+
+# 3. Mobile run
+npx react-native run-android
