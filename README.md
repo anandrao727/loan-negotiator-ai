@@ -13,7 +13,7 @@ loan-shield-app/
 │   ├── .env.example
 │   └── src/
 │       ├── App.jsx
-│       ├── Splash.jsx   (optional, तुम add कर सकते हो)
+│       ├── Splash.jsx   (optional, go.mod, go.sum)
 │       └── components/
 │           └── Login.jsx
 │
