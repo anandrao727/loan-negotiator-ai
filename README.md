@@ -1,4 +1,4 @@
-loan-shield-v4/
+🛡️ Loan Shield → Life Shield
 │── render.yaml
 │── README.md
 │
