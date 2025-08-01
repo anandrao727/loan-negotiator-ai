@@ -209,6 +209,10 @@ export default function App() {
   );
 }
 
+git add go.mod go.sum
+git commit -m "Add go.mod and go.sum"
+git push origin main
+
 frontend/src/components/Login.jsx
 
 import { useState } from "react";
