@@ -1,8 +1,11 @@
-loan-shield-app/
+loan-shield-v4/
+│── render.yaml
+│── README.md
 │
 ├── backend/
-│   ├── .env.example
+│   ├── package.json
 │   ├── server.js
+│   ├── .env.example
 │   ├── models/
 │   │   ├── User.js
 │   │   └── Proof.js
@@ -10,103 +13,75 @@ loan-shield-app/
 │       └── errorHandler.js
 │
 ├── frontend/
+│   ├── package.json
+│   ├── vite.config.js
 │   ├── .env.example
 │   └── src/
 │       ├── App.jsx
-│       ├── Splash.jsx   (optional, go.mod, go.sum)
+│       ├── Splash.jsx
+│       ├── index.css
 │       └── components/
-│           └── Login.jsx
+│           ├── Login.jsx
+│           ├── LoanCalculator.jsx   ✅ नया UI
+│           ├── About.jsx
+│           ├── Contact.jsx
+│           └── Footer.jsx
 │
-└── mobile/
-    └── screens/
-        ├── LoginScreen.js
-        └── EvidenceScreen.js
-
-backend/.env.example
-
-{
-  "name": "loan-shield-backend",
-  "version": "1.0.0",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "mongoose": "^7.0.4",
-    "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
-}
-
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
+├── mobile/
+│   ├── package.json
+│   ├── App.js
+│   ├── screens/
+│   │   ├── WarningScreen.js
+│   │   ├── LoginScreen.js
+│   │   ├── Dashboard.js
+│   │   └── EvidenceScreen.js
+│   └── utils/
+│       ├── crypto.js
+│       └── autoReply.js
+│
+└── go-service/                ✅ नया Go microservice
+    ├── main.go
+    └── go.mod
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
-
-backend/models/User.js
-
-import mongoose from "mongoose";
-
-const userSchema = new mongoose.Schema({
-  mobile: String,
-  email: String,
-  branchCode: String,
-  loanActive: Boolean,
-  loanEvidence: Boolean,
-  blocked: { type: Boolean, default: false }
-});
-
-export default mongoose.model("User", userSchema);
-
-backend/models/Proof.js
-
-import mongoose from "mongoose";
-
-const proofSchema = new mongoose.Schema({
-  mobile: String,
-  encryptedPDF: String,
-  timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model("Proof", proofSchema);
-
-backend/middleware/errorHandler.js
-
-export default function errorHandler(err, req, res, next) {
-  console.error("❌ Error:", err.message);
-  res.status(500).json({ message: "Server Error" });
-}
-
-backend/server.js
-
+GO_SERVICE_URL=https://loan-verifier-go.onrender.com
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import fetch from "node-fetch";   // Go service call
+
 import User from "./models/User.js";
 import Proof from "./models/Proof.js";
 import errorHandler from "./middleware/errorHandler.js";
 
 dotenv.config();
 const app = express();
+
+// Security
+app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
+
+// Rate Limit
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "⚠️ Too many requests, please try later."
+});
+app.use(limiter);
 
 // DB connect
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ DB Error:", err));
 
-// 🔑 JWT Middleware
+// JWT Middleware
 function verifyToken(req, res, next) {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "❌ Token missing" });
@@ -166,268 +141,302 @@ app.get("/get-proof", verifyToken, async (req, res, next) => {
   }
 });
 
+// 🆕 Loan Verification (Go microservice)
+app.post("/verify-loan", verifyToken, async (req, res) => {
+  try {
+    const { amount, duration, rate } = req.body;
+
+    const response = await fetch(process.env.GO_SERVICE_URL + "/check-loan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, duration, rate })
+    });
+
+    const data = await response.json();
+    res.json({ message: "✅ Loan Verified via Go Service", data });
+  } catch (err) {
+    console.error("❌ Go service error:", err);
+    res.status(500).json({ message: "Go service unavailable" });
+  }
+});
+
 app.use(errorHandler);
 app.listen(process.env.PORT || 5000, () => console.log("🚀 Backend running"));
+import { useState } from "react";
 
+export default function LoanCalculator() {
+  const [amount, setAmount] = useState("");
+  const [duration, setDuration] = useState("");
+  const [rate, setRate] = useState("");
+  const [result, setResult] = useState(null);
 
-cd backend
-npm install
-npm start
+  const handleVerify = async () => {
+    const token = localStorage.getItem("jwt");
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/verify-loan`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ amount: parseFloat(amount), duration: parseInt(duration), rate: parseFloat(rate) }),
+    });
+    const data = await res.json();
+    setResult(data);
+  };
 
-
---
-frontend/.env.example
-
-VITE_API_URL=http://localhost:5000
-
-
-frontend/src/App.jsx
-
+  return (
+    <div className="p-6 bg-white rounded shadow w-96 space-y-3">
+      <h2 className="text-lg font-bold">📊 Loan Calculator</h2>
+      <input type="number" placeholder="Loan Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full border p-2 rounded" />
+      <input type="number" placeholder="Duration (months)" value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full border p-2 rounded" />
+      <input type="number" placeholder="Interest Rate (%)" value={rate} onChange={(e) => setRate(e.target.value)} className="w-full border p-2 rounded" />
+      <button onClick={handleVerify} className="w-full bg-blue-600 text-white py-2 rounded">Calculate EMI</button>
+      {result && (
+        <div className="mt-3 text-sm bg-gray-100 p-3 rounded">
+          <p>{result.message}</p>
+          <p>EMI: <b>{result.data?.emi?.toFixed(2)}</b></p>
+        </div>
+      )}
+    </div>
+  );
+}
 import { useState } from "react";
 import Splash from "./Splash";
 import Login from "./components/Login";
-
-export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem("jwt"));
-
-  if (showSplash) {
-    return <Splash onFinish={() => setShowSplash(false)} />;
-  }
-
-  if (!token) {
-    return <Login setToken={setToken} />;
-  }
-
-  return (
-    <div className="p-6">
-      <h2 className="text-lg font-bold text-green-700">✅ Logged In</h2>
-      <p className="mt-2 text-gray-700">
-        अब आप Evidence upload / fetch कर सकते हैं।
-      </p>
-    </div>
-  );
-}
-
-git add go.mod go.sum
-git commit -m "Add go.mod and go.sum"
-git push origin main
-
-frontend/src/components/Login.jsx
-
-import { useState } from "react";
-
-export default function Login({ setToken }) {
-  const [mobile, setMobile] = useState("");
-  const [identifier, setIdentifier] = useState("");
-  const [message, setMessage] = useState("");
-
-  const handleLogin = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, identifier, consent: true }),
-    });
-    const data = await res.json();
-    setMessage(data.message);
-
-    if (data.token) {
-      localStorage.setItem("jwt", data.token);
-      setToken(data.token);
-    }
-  };
-
-  return (
-    <div className="p-6 bg-white rounded shadow w-80 space-y-3">
-      <input
-        type="text"
-        placeholder="Mobile Number"
-        className="w-full border p-2 rounded"
-        value={mobile}
-        onChange={(e) => setMobile(e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Email / Branch Code"
-        className="w-full border p-2 rounded"
-        value={identifier}
-        onChange={(e) => setIdentifier(e.target.value)}
-      />
-      <button
-        onClick={handleLogin}
-        className="w-full bg-green-600 text-white py-2 rounded"
-      >
-        Login
-      </button>
-      {message && <p className="mt-2 text-sm">{message}</p>}
-    </div>
-  );
-}
-
-cd frontend
-npm install
-npm run dev
-
-mobile/screens/LoginScreen.js
+import LoanCalculator from "./components/LoanCalculator";
 
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function LoginScreen({ setToken }) {
-  const [mobile, setMobile] = useState("");
-  const [identifier, setIdentifier] = useState("");
+export default function LoanCalculatorScreen() {
+  const [amount, setAmount] = useState("");
+  const [duration, setDuration] = useState("");
+  const [rate, setRate] = useState("");
+  const [result, setResult] = useState(null);
   const [message, setMessage] = useState("");
 
-  const handleLogin = async () => {
-    const res = await fetch("http://10.0.2.2:5000/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, identifier, consent: true }),
-    });
-    const data = await res.json();
-    setMessage(data.message);
+  const handleVerify = async () => {
+    const token = await AsyncStorage.getItem("jwt");
+    if (!token) {
+      setMessage("❌ Please login first");
+      return;
+    }
 
-    if (data.token) {
-      await AsyncStorage.setItem("jwt", data.token);
-      setToken(data.token);
+    try {
+      const res = await fetch("http://10.0.2.2:5000/verify-loan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          duration: parseInt(duration),
+          rate: parseFloat(rate)
+        })
+      });
+
+      const data = await res.json();
+      setMessage(data.message);
+      setResult(data.data);
+    } catch (err) {
+      console.error("Error:", err);
+      setMessage("❌ Go Service unavailable");
     }
   };
 
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>📊 Loan Calculator</Text>
+
       <TextInput
         style={styles.input}
-        placeholder="Mobile Number"
-        value={mobile}
-        onChangeText={setMobile}
+        placeholder="Loan Amount"
+        keyboardType="numeric"
+        value={amount}
+        onChangeText={setAmount}
       />
       <TextInput
         style={styles.input}
-        placeholder="Email / Branch Code"
-        value={identifier}
-        onChangeText={setIdentifier}
+        placeholder="Duration (months)"
+        keyboardType="numeric"
+        value={duration}
+        onChangeText={setDuration}
       />
-      <Button title="Login" onPress={handleLogin} />
-      {message ? <Text style={styles.text}>{message}</Text> : null}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  input: { borderWidth: 1, borderColor: "#ccc", padding: 10, marginVertical: 5 },
-  text: { marginTop: 10, color: "blue" },
-});
-
-mobile/screens/EvidenceScreen.js
-
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-export default function EvidenceScreen() {
-  const [content, setContent] = useState("");
-  const [evidences, setEvidences] = useState([]);
-  const [message, setMessage] = useState("");
-
-  const saveEvidence = async () => {
-    const token = await AsyncStorage.getItem("jwt");
-    const res = await fetch("http://10.0.2.2:5000/save-proof", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ encryptedPDF: content }),
-    });
-    const data = await res.json();
-    setMessage(data.message);
-    fetchEvidence();
-  };
-
-  const fetchEvidence = async () => {
-    const token = await AsyncStorage.getItem("jwt");
-    const res = await fetch("http://10.0.2.2:5000/get-proof", {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    const data = await res.json();
-    setEvidences(data);
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>📂 Loan Evidence</Text>
       <TextInput
-        style={[styles.input, { height: 80 }]}
-        placeholder="Enter Evidence (Encrypted PDF Text)"
-        value={content}
-        onChangeText={setContent}
-        multiline
+        style={styles.input}
+        placeholder="Interest Rate (%)"
+        keyboardType="numeric"
+        value={rate}
+        onChangeText={setRate}
       />
-      <TouchableOpacity style={styles.button} onPress={saveEvidence}>
-        <Text style={styles.buttonText}>💾 Save</Text>
+
+      <TouchableOpacity style={styles.button} onPress={handleVerify}>
+        <Text style={styles.buttonText}>Calculate EMI</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.button, { backgroundColor: "purple" }]} onPress={fetchEvidence}>
-        <Text style={styles.buttonText}>📥 Fetch</Text>
-      </TouchableOpacity>
+
       {message ? <Text style={styles.message}>{message}</Text> : null}
-      <FlatList
-        data={evidences}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text>{item.encryptedPDF}</Text>
-          </View>
-        )}
-      />
+      {result && (
+        <View style={styles.resultBox}>
+          <Text style={styles.resultText}>EMI: {result.emi?.toFixed(2)}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginBottom: 10 },
-  button: { backgroundColor: "green", padding: 12, borderRadius: 8, marginBottom: 10 },
+  button: { backgroundColor: "green", padding: 12, borderRadius: 8, marginTop: 10 },
   buttonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
-  message: { marginVertical: 10, fontSize: 14, color: "blue" },
-  card: { padding: 10, backgroundColor: "#fff", borderRadius: 8, marginBottom: 10 },
+  message: { marginVertical: 10, fontSize: 14, color: "blue", textAlign: "center" },
+  resultBox: { marginTop: 15, padding: 12, backgroundColor: "#fff", borderRadius: 8 },
+  resultText: { fontSize: 16, fontWeight: "bold", color: "black" },
 });
 
-cd mobile
-npm install
-npm run android
+import React, { useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
 
-npm install
+import LoginScreen from "./screens/LoginScreen";
+import Dashboard from "./screens/Dashboard";
+import EvidenceScreen from "./screens/EvidenceScreen";
+import LoanCalculatorScreen from "./screens/LoanCalculatorScreen";  // ✅ New screen
 
-MONGO_URI=mongodb+srv://<anandrao727>:<Ar@15592>@cluster0.mongodb.net/loanShield
-JWT_SECRET=supersecretjwtkey
-PORT=5000
+const Stack = createStackNavigator();
 
-node server.js
+export default function App() {
+  const [token, setToken] = useState(null);
 
-✅ MongoDB Connected
-🚀 Backend running
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        {!token ? (
+          <Stack.Screen name="Login">
+            {(props) => <LoginScreen {...props} setToken={setToken} />}
+          </Stack.Screen>
+        ) : (
+          <>
+            <Stack.Screen name="Dashboard" component={Dashboard} />
+            <Stack.Screen name="Evidence" component={EvidenceScreen} />
+            <Stack.Screen name="LoanCalculator" component={LoanCalculatorScreen} /> {/* ✅ Add here */}
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
-npm install
+export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem("jwt"));
 
-VITE_API_URL=http://localhost:5000
+  if (showSplash) return <Splash onFinish={() => setShowSplash(false)} />;
 
-npm run dev
+  if (!token) return <Login setToken={setToken} />;
 
-http://localhost:5173
+  return (
+    <div className="p-6 space-y-6">
+      <h2 className="text-lg font-bold text-green-700">✅ Logged In</h2>
+      <p className="text-gray-700">अब आप Evidence upload / fetch कर सकते हैं और Loan calculate भी कर सकते हैं।</p>
+      <LoanCalculator />
+    </div>
+  );
+}
+package main
 
-npm install
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
 
-const res = await fetch("http://10.0.2.2:5000/login", {...});
+type LoanCheckRequest struct {
+	Amount   float64 `json:"amount"`
+	Duration int     `json:"duration"`
+	Rate     float64 `json:"rate"`
+}
 
-npx react-native run-android
+type LoanCheckResponse struct {
+	EMI float64 `json:"emi"`
+	Ok  bool    `json:"ok"`
+}
 
-npx expo start
+func calculateEMI(amount float64, duration int, rate float64) float64 {
+	monthlyRate := rate / (12 * 100)
+	n := float64(duration)
+	emi := (amount * monthlyRate * pow(1+monthlyRate, n)) / (pow(1+monthlyRate, n) - 1)
+	return emi
+}
 
-# 1. Backend run
-node server.js
+func pow(x, y float64) float64 {
+	res := 1.0
+	for i := 0; i < int(y); i++ {
+		res *= x
+	}
+	return res
+}
 
-# 2. Frontend run
-npm run dev
+func loanHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-# 3. Mobile run
-npx react-native run-android
+	var req LoanCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	emi := calculateEMI(req.Amount, req.Duration, req.Rate)
+	resp := LoanCheckResponse{EMI: emi, Ok: true}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func main() {
+	http.HandleFunc("/check-loan", loanHandler)
+	log.Println("✅ Go Loan Service running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+module loan-verifier
+
+go 1.20
+services:
+  - type: web
+    name: loan-shield-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PORT
+        value: 5000
+      - key: GO_SERVICE_URL
+        value: https://loan-verifier-go.onrender.com
+
+  - type: web
+    name: loan-shield-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://loan-shield-backend.onrender.com
+
+  - type: web
+    name: loan-verifier-go
+    env: go
+    rootDir: go-service
+    buildCommand: go build -o app main.go
+    startCommand: ./app
