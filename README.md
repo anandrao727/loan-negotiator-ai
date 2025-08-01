@@ -42,7 +42,7 @@ loan-shield-v4/
 └── go-service/                ✅ नया Go microservice
     ├── main.go
     └── go.mod
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/loanShield
+MONGO_URI=mongodb+srv://<anandrao727>:<Ar@15592>@cluster.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
 GO_SERVICE_URL=https://loan-verifier-go.onrender.com
