@@ -43,6 +43,24 @@ life-shield/
 └── go-service/              # Go microservice
     ├── main.go
     └── go.mod
+# Loan Verifier Go Service
+
+### Run locally
+```bash
+cd go-service
+go run main.go
+go build -o app main.go
+./app
+---
+
+### ⚡ Render.yaml (final snippet)
+```yaml
+- type: web
+  name: loan-verifier-go
+  env: go
+  rootDir: go-service
+  buildCommand: go build -o app main.go
+  startCommand: ./app
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -364,5 +382,80 @@ services:
     name: loan-verifier-go
     env: go
     rootDir: go-service
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+type LoanCheckRequest struct {
+	Amount   float64 `json:"amount"`
+	Duration int     `json:"duration"`
+	Rate     float64 `json:"rate"`
+}
+
+type LoanCheckResponse struct {
+	EMI float64 `json:"emi"`
+	Ok  bool    `json:"ok"`
+}
+
+func calculateEMI(amount float64, duration int, rate float64) float64 {
+	monthlyRate := rate / (12 * 100)
+	n := float64(duration)
+
+	emi := (amount * monthlyRate * pow(1+monthlyRate, n)) / (pow(1+monthlyRate, n) - 1)
+	return emi
+}
+
+func pow(x, y float64) float64 {
+	res := 1.0
+	for i := 0; i < int(y); i++ {
+		res *= x
+	}
+	return res
+}
+
+func loanHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req LoanCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	emi := calculateEMI(req.Amount, req.Duration, req.Rate)
+	resp := LoanCheckResponse{EMI: emi, Ok: true}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func main() {
+	http.HandleFunc("/check-loan", loanHandler)
+	log.Println("✅ Go Loan Service running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+module loan-verifier
+
+go 1.20
+
     buildCommand: go build -o app .
     startCommand: ./app
+
+curl -X POST https://loan-verifier-go.onrender.com/check-loan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 500000,
+    "duration": 60,
+    "rate": 10
+  }'
+{
+  "emi": 10624.58,
+  "ok": true
+}
