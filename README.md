@@ -24,6 +24,28 @@ loan-shield-app/
 
 backend/.env.example
 
+{
+  "name": "loan-shield-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "mongoose": "^7.0.4",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+
 MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
@@ -372,7 +394,7 @@ npm run android
 
 npm install
 
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/loanShield
+MONGO_URI=mongodb+srv://<anandrao727>:<Ar@15592>@cluster0.mongodb.net/loanShield
 JWT_SECRET=supersecretjwtkey
 PORT=5000
 
