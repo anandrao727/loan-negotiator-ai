@@ -360,7 +360,7 @@ services:
     startCommand: node server.js
     envVars:
       - key: MONGO_URI
-        value: mongodb+srv://<username>:<password>@cluster.mongodb.net/loanShield
+        value: mongodb+srv://<anandrao727>:<Ar@15592>@cluster.mongodb.net/loanShield
       - key: JWT_SECRET
         value: supersecretjwtkey
       - key: PORT
@@ -383,6 +383,72 @@ services:
     env: go
     rootDir: go-service
 package main
+module loan-verifier
+
+go 1.20
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+type LoanCheckRequest struct {
+	Amount   float64 `json:"amount"`
+	Duration int     `json:"duration"`
+	Rate     float64 `json:"rate"`
+}
+
+type LoanCheckResponse struct {
+	EMI float64 `json:"emi"`
+	Ok  bool    `json:"ok"`
+}
+
+// EMI calculation function
+func calculateEMI(amount float64, duration int, rate float64) float64 {
+	monthlyRate := rate / (12 * 100)
+	n := float64(duration)
+	emi := (amount * monthlyRate * pow(1+monthlyRate, n)) / (pow(1+monthlyRate, n) - 1)
+	return emi
+}
+
+// simple power function
+func pow(x, y float64) float64 {
+	res := 1.0
+	for i := 0; i < int(y); i++ {
+		res *= x
+	}
+	return res
+}
+
+func loanHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req LoanCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	emi := calculateEMI(req.Amount, req.Duration, req.Rate)
+	resp := LoanCheckResponse{EMI: emi, Ok: true}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func main() {
+	http.HandleFunc("/check-loan", loanHandler)
+	log.Println("✅ Go Loan Service running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+cd loan-shield-v4/go-service
+go mod tidy
+go run main.go
 
 import (
 	"encoding/json"
