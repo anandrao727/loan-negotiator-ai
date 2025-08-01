@@ -52,6 +52,42 @@ go run main.go
 go build -o app main.go
 ./app
 ---
+services:
+  # Backend (Node.js + Express)
+  - type: web
+    name: loan-shield-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGO_URI
+        value: mongodb+srv://<username>:<password>@cluster.mongodb.net/loanShield
+      - key: JWT_SECRET
+        value: supersecretjwtkey
+      - key: PORT
+        value: 5000
+      - key: GO_SERVICE_URL
+        value: https://loan-verifier-go.onrender.com
+
+  # Frontend (Vite + React + Tailwind)
+  - type: web
+    name: loan-shield-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://loan-shield-backend.onrender.com
+
+  # Go Loan Verifier Service
+  - type: web
+    name: loan-verifier-go
+    env: go
+    rootDir: go-service
+    buildCommand: go build -o app .
+    startCommand: ./app
 
 ### ⚡ Render.yaml (final snippet)
 ```yaml
